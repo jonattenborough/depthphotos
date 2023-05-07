@@ -1,0 +1,164 @@
+
+
+
+
+
+<div id="container"></div>
+
+<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/"
+    }
+  }
+</script>
+
+
+<style>
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+  }
+  #container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+  }
+</style>
+
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// Scene, camera, and renderer setup
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(
+  4,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+// Get container and set renderer size based on container size
+const container = document.getElementById("container");
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(renderer.domElement); 
+
+  // Handle window resizing
+  function onWindowResize() {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  }
+
+  window.addEventListener("resize", onWindowResize, false);
+
+// Load texture and depth map
+const textureLoader = new THREE.TextureLoader();
+const loadImage = (url) => {
+  return new Promise((resolve) => {
+    textureLoader.load(url, resolve);
+  });
+};
+
+const [texture, depthMap] = await Promise.all([
+  loadImage(
+    "https://images.squarespace-cdn.com/content/v1/6329d5824ec92a053e732418/af09be22-6366-43d3-9e43-0650358f7b71/220803_OXBOW_2066.jpg"
+  ),
+  loadImage(
+    "https://images.squarespace-cdn.com/content/v1/6329d5824ec92a053e732418/574ef3f5-2a0e-411f-9ab4-314cf1861d39/220803_OXBOW_2066_depth.jpg"
+  ),
+]);
+
+const DEPTH_SCALE = 1;
+// Create plane geometry and apply depth map
+const geometry = new THREE.PlaneGeometry(3,2, 512, 512);
+geometry.computeVertexNormals();
+
+function createDisplacementMaterial(texture, depthMap) {
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    displacementMap: depthMap,
+    displacementScale: 4, // Adjust the displacement scale as needed
+  });
+
+  return material;
+}
+
+// Create mesh with texture
+const material = createDisplacementMaterial(texture, depthMap);
+const mesh = new THREE.Mesh(geometry, material);
+
+scene.add(mesh);
+
+// Add ambient light
+const ambientLight = new THREE.AmbientLight(0x404040, 1);
+scene.add(ambientLight);
+
+// Add directional light
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+directionalLight.position.set(1, 1, 1);
+scene.add(directionalLight);
+
+// Set camera position
+camera.position.z = 23;
+
+// Get the center point of the window
+const center = {
+  x: window.innerWidth / 2,
+  y: window.innerHeight / 2,
+};
+
+// Set an initial camera position
+let cameraPosition = {
+  x: 0,
+  y: 0,
+  z: 23,
+};
+
+// Adjust these to change the speed and direction of the camera's movement
+const sensitivity = {
+  x: -0.001,
+  y: 0.001,
+};
+
+window.addEventListener('mousemove', (event) => {
+  // Calculate the mouse's position relative to the center of the screen
+  const deltaX = event.clientX - center.x;
+  const deltaY = event.clientY - center.y;
+
+  // Update the camera's position based on the mouse's position
+  cameraPosition.x = deltaX * sensitivity.x;
+  cameraPosition.y = deltaY * sensitivity.y;
+
+  // Apply the new camera position
+  camera.position.x = cameraPosition.x;
+  camera.position.y = cameraPosition.y;
+  camera.position.z = cameraPosition.z;
+
+  // Make sure the camera is still looking at the center of the scene
+  camera.lookAt(scene.position);
+});
+
+
+// Animation loop
+const animate = () => {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+};
+
+animate();
+</script>
